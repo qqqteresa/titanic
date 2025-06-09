@@ -21,7 +21,7 @@
 * Evaluate model accuracy on the test set
 * Save the processed features as train_processed.csv
 
-🔷 Prediction and Submission
+##　🔷 Prediction and Submission
 1. Test Data Preprocessing
 * Load the test.csv
 * Fill missing values in Age, Fare, Embarked, and simplify Cabin
