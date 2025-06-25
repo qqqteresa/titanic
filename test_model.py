@@ -6,7 +6,7 @@ import xgboost as xgb
 model = joblib.load("xgb_model.pkl")
 feature_names = joblib.load("xgb_features.pkl")
 
-# 📥 載入新的 Titanic 測試資料
+# 載入新的 Titanic 測試資料
 print('read test.csv')
 df = pd.read_csv("test.csv")  
 
