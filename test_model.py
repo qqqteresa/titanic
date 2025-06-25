@@ -1,50 +1,65 @@
 import pandas as pd
+import joblib
 import xgboost as xgb
-import pickle  # 用來讀取訓練好的模型
 
-# 讀取測試數據
-df_test = pd.read_csv("test.csv")
+# 載入訓練時儲存的模型與特徵名稱
+model = joblib.load("xgb_model.pkl")
+feature_names = joblib.load("xgb_features.pkl")
 
-# 保存 PassengerId（最後要用來生成 submission.csv）
-passenger_ids = df_test["PassengerId"]
+# 📥 載入新的 Titanic 測試資料
+print('read test.csv')
+df = pd.read_csv("test.csv")  
 
-# **處理缺失值（和 train.csv 一樣的處理方式）**
-df_test["Age"] = df_test["Age"].fillna(df_test["Age"].median())  # 填補年齡中位數
-df_test["Fare"] = df_test["Fare"].fillna(df_test["Fare"].median())  # 填補票價中位數
-df_test["Embarked"] = df_test["Embarked"].fillna("S")  # 登船港口填 'S'
-df_test["Cabin"] = df_test["Cabin"].fillna("U").map(lambda x: x[0])  # 艙房首字母
+# 做出和訓練時一樣的特徵工程 -----------------------------
 
-# **新增特徵（和 train.csv 一樣的處理方式）**
-df_test["FamilySize"] = df_test["SibSp"] + df_test["Parch"] + 1  # 家庭大小
-df_test["IsAlone"] = (df_test["FamilySize"] == 1).astype(int)  # 是否獨自旅行
-df_test["FareGroup"] = pd.qcut(
-df_test["Fare"], 5, labels=[1, 2, 3, 4, 5])  # 票價分組
+print('process feature')
+# 缺失值處理
+df["Age"] = df["Age"].fillna(df["Age"].median())
+df["Fare"] = df["Fare"].fillna(df["Fare"].median())
+df["Embarked"] = df["Embarked"].fillna("S")
 
-# **進行 One-Hot Encoding（和 train.csv 一樣的處理方式）**
-df_test = pd.get_dummies(
-    df_test, columns=["Sex", "Embarked", "Cabin", "FareGroup"], drop_first=True)
+# FamilySize
+df["FamilySize"] = df["SibSp"] + df["Parch"] + 1
 
-# **確保 test 的欄位和 train 一致**
-df_train = pd.read_csv("train_processed.csv")  # 讀取處理過的 train 資料
-train_columns = df_train.columns.tolist()
-# train_columns.remove("Survived")  # 移除 Survived，因為 test 沒有這個欄位
+# Title
+df["Title"] = df["Name"].str.extract(" ([A-Za-z]+)\.", expand=False)
+df["Title"] = df["Title"].replace(
+    ['Lady', 'Countess', 'Capt', 'Col', 'Don', 'Dr', 'Major', 'Rev',
+     'Sir', 'Jonkheer', 'Dona'], 'Rare')
+df["Title"] = df["Title"].replace(['Mlle', 'Ms'], 'Miss')
+df["Title"] = df["Title"].replace('Mme', 'Mrs')
 
-# **確保 test 有所有 train 的欄位**
-df_test = df_test.reindex(columns=train_columns, fill_value=0)  # 如果有缺的欄位，補 0
+# One-hot Title
+title_dummies = pd.get_dummies(df["Title"], prefix="Title")
+for col in ["Title_Mr", "Title_Mrs", "Title_Master", "Title_Rare"]:
+    df[col] = title_dummies.get(col, 0)
 
-# **儲存處理後的 test 數據**
-df_test.to_csv("test_processed.csv", index=False)
+# Sex
+df["Sex_female"] = (df["Sex"] == "female").astype(int)
 
-# **讀取已訓練的模型**
-model = xgb.XGBClassifier()  # 如果是使用 XGBClassifier 儲存
-model.load_model("xgboost_model.json")  # 或者是 xgboost_model.bin
+# Embarked
+df["Embarked_C"] = (df["Embarked"] == "C").astype(int)
+df["Embarked_S"] = (df["Embarked"] == "S").astype(int)
 
-# **進行預測**
-predictions = model.predict(df_test)
+# TicketFreq
+df["TicketFreq"] = df.groupby("Ticket")["Ticket"].transform("count")
 
-# **生成 Kaggle 提交檔案**
-submission = pd.DataFrame(
-    {"PassengerId": passenger_ids, "Survived": predictions})
-submission.to_csv("submission.csv", index=False)
+print('process feature complete ')
+# 確保所有訓練用的特徵都有，若缺就補 0
+for col in feature_names:
+    if col not in df.columns:
+        df[col] = 0
 
-print("✅ 完成！請上傳 submission.csv 到 Kaggle 🚀")
+# 排序特徵順序一致
+X_test = df[feature_names]
+
+print('start predict .....')
+# 預測
+y_pred = model.predict(X_test)
+
+# 加入結果
+df["Survived"] = y_pred
+
+# 儲存結果
+df[["PassengerId", "Survived"]].to_csv("submission.csv", index=False)
+print("prediction complete，save as submission.csv")
