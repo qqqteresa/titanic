@@ -1,41 +1,37 @@
 # titanic predictor
+A machine learning project using the Titanic dataset from Kaggle to predict passenger survival based on selected features and an XGBoost classification model.
 ## 🔷 Model Training
 1. Data Preprocessing (Cleaning and Feature Engineering)
 * Download the original train.csv from kaggle,below is the link：
   > https://www.kaggle.com/competitions/titanic
 * Handle missing values ：fill missing Age and Fare with median, Embarked with 'S'
-* Simplify the Cabin column by extracting the first letter (e.g., 'B57' → 'B')
-* Create new features: FamilySize, IsAlone, FareGroup
-* Apply One-Hot Encoding to categorical features for Sex, Embarked, Cabin, FareGroup
+* Feature Engineering：FamilySize = SibSp + Parch + 1 
+* Create new features: extract honorifics from the Name column
+* Apply One-Hot Encoding to categorical features for Sex, Embarked, Title
 
-2. Feature Selection and Standardization
-* Select meaningful features (e.g., Pclass, Age, Sex_, etc.) for training
-* Use StandardScaler to normalize Age and Fare 
+2. Selected Features Used for Training
+* Sex_female, Pclass, Title_Mr, Fare, Age, Title_Master, FamilySize,
+Title_Mrs, Embarked_S, SibSp, TicketFreq, Embarked_C, Parch, Title_Rare
 
 3. Model Training and Saving
 * Split the dataset into training and testing sets using train_test_split(80/20)
 * Train an XGBoostClassifier with chosen hyperparameters
-* Save the trained model to xgboost_model.json
+* xgb_model.pkl: trained XGBoost model
+* xgb_features.pkl: list of selected feature column names
+* titanic_selected_features.csv: processed training dataset with final features
 
 4. Evaluation and Saving Processed Data
-* Evaluate model accuracy on the test set
-* Save the processed features as train_processed.csv
+* Accuracy is calculated on the 20% held-out test set using accuracy_score
 
 ## 🔷 Prediction and Submission
 1. Test Data Preprocessing
 * Load the test.csv
-* Fill missing values in Age, Fare, Embarked, and simplify Cabin
-* Create new features ：FamilySize, IsAlone, FareGroup
-* Apply One-Hot Encoding to match training preprocessing
+* Apply the same preprocessing as the training set
 
-2. Ensure Matching Columns with Training Data
-* Load train_processed.csv to get the list of columns
-* Reindex the test dataset to ensure it has the same features 
+2. Load Model and Make Predictions
+* Load xgb_model.pkl and xgb_features.pkl
+* Apply the model to the test data
 
-3. Load Model and Make Predictions
-* Load the previously saved xgboost_model.json model
-* Use it to predict survival on the test dataset
-
-4. Generate Kaggle Submission File
-* Create a new DataFrame with PassengerId and predicted Survived values
-* Save the results as submission.csv 
+3. Generate Submission File
+* columns for PassengerId, Survived
+* Save predictions to submission.csv
